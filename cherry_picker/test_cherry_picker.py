@@ -838,7 +838,7 @@ def test_start_end_states(method_name, start_state, end_state, tmp_git_repo_dir)
     assert get_state() == end_state
 
 
-def test_cleanup_branch(tmp_git_repo_dir, git_checkout):
+def test_cleanup_branch(tmp_git_repo_dir, git_checkout, capsys):
     assert get_state() == WORKFLOW_STATES.UNSET
 
     with mock.patch("cherry_picker.cherry_picker.validate_sha", return_value=True):
@@ -846,9 +846,13 @@ def test_cleanup_branch(tmp_git_repo_dir, git_checkout):
     assert get_state() == WORKFLOW_STATES.UNSET
 
     git_checkout("-b", "some_branch")
+    branch_sha = get_sha1_from("some_branch")
     cherry_picker.cleanup_branch("some_branch")
     assert get_state() == WORKFLOW_STATES.REMOVED_BACKPORT_BRANCH
     assert get_current_branch() == "main"
+    out = capsys.readouterr().out
+    assert "branch some_branch has been deleted." in out
+    assert f"To restore it, run:\ngit branch some_branch {branch_sha}\n" in out
 
 
 def test_cleanup_branch_checkout_previous_branch(
@@ -868,7 +872,7 @@ def test_cleanup_branch_checkout_previous_branch(
     assert get_current_branch() == "previous_branch"
 
 
-def test_cleanup_branch_fail(tmp_git_repo_dir):
+def test_cleanup_branch_fail(tmp_git_repo_dir, capsys):
     assert get_state() == WORKFLOW_STATES.UNSET
 
     with mock.patch("cherry_picker.cherry_picker.validate_sha", return_value=True):
@@ -877,6 +881,9 @@ def test_cleanup_branch_fail(tmp_git_repo_dir):
 
     cherry_picker.cleanup_branch("some_branch")
     assert get_state() == WORKFLOW_STATES.REMOVING_BACKPORT_BRANCH_FAILED
+    out = capsys.readouterr().out
+    assert "branch some_branch NOT deleted." in out
+    assert "To restore it" not in out
 
 
 def test_cleanup_branch_checkout_fail(

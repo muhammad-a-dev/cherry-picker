@@ -516,6 +516,12 @@ $ cherry_picker --abort
             print(f"branch {branch} NOT deleted.")
             set_state(WORKFLOW_STATES.REMOVING_BACKPORT_BRANCH_FAILED)
             return
+        # Remember where the branch points so that the user can restore it,
+        # for example if pushing it failed and manual work would be lost.
+        try:
+            branch_sha = get_sha1_from(branch)
+        except ValueError:
+            branch_sha = None
         try:
             self.delete_branch(branch)
         except subprocess.CalledProcessError:
@@ -523,6 +529,9 @@ $ cherry_picker --abort
             set_state(WORKFLOW_STATES.REMOVING_BACKPORT_BRANCH_FAILED)
         else:
             print(f"branch {branch} has been deleted.")
+            if branch_sha:
+                print("To restore it, run:")
+                print(f"git branch {branch} {branch_sha}")
             set_state(WORKFLOW_STATES.REMOVED_BACKPORT_BRANCH)
 
     def unset_upstream(self, branch):
